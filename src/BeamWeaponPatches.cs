@@ -672,7 +672,7 @@ namespace ZedZone.BetterSpecialWeapons
     }
 
     /// <summary>
-    /// 采矿激光器（466）命中角色改为可配置高频脉冲（默认 30Hz），并修复穿甲/击杀系数被误传为 bulletNumber=1 的问题。
+    /// 采矿激光器（466）命中角色改为可配置高频脉冲（默认 50Hz），并可调整击杀瞬间的物理击飞倍率（原版误用 bulletNumber=1）。
     /// </summary>
     [HarmonyPatch(typeof(BasicLaserWeapon), nameof(BasicLaserWeapon.HitCharacter), typeof(RaycastHit2D))]
     internal static class Patch_BasicLaserWeapon_HitCharacter

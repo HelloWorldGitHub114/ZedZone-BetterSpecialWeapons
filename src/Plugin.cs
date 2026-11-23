@@ -109,7 +109,7 @@ namespace ZedZone.BetterSpecialWeapons
                 new ConfigDescription("采矿激光器每秒伤害脉冲次数（Hz，范围 10 ~ 100，默认 50 即面板 3,000 RPM，并同步至武器面板射速）。",
                     new AcceptableValueRange<float>(10f, 100f)));
             LaserDeathMultiplier = Config.Bind("MiningLaser_466", "DeathMultiplier", 25f,
-                new ConfigDescription("采矿激光器命中目标的击杀/穿甲系数（原版误传为 bulletNumber=1，特斯拉为 50）。",
+                new ConfigDescription("采矿激光器击杀目标瞬间的物理击飞力度倍率（原版误用 bulletNumber=1，特斯拉为 50）。",
                     new AcceptableValueRange<float>(1f, 100f)));
             LaserMiningMultiplier = Config.Bind("MiningLaser_466", "MiningDamageMultiplier", 1.0f,
                 new ConfigDescription("采矿激光器对地形物体与地下矿石的开采速度倍率（1.0 等同原版 600 基准效率）。",
