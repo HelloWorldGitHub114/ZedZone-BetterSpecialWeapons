@@ -65,7 +65,7 @@ namespace ZedZone.BetterSpecialWeapons
         /// </summary>
         internal static bool TryConsumePulse(BasicRangedWeapon weapon, float interval, out float effectiveInterval, out float pulseCountScale)
         {
-            effectiveInterval = Mathf.Clamp(interval, 0.015f, 0.25f);
+            effectiveInterval = Mathf.Clamp(interval, 0.005f, 0.25f);
             pulseCountScale = 1f;
 
             var tracker = GetOrCreate(weapon);
@@ -197,6 +197,7 @@ namespace ZedZone.BetterSpecialWeapons
 
                 // 与原版 BasicTeslaWeapon.UpdateFiring 保持完全一致的射线起点（扣除角色站立高度投影）
                 Vector2 rayOrigin = new Vector2(gunPos3.x, gunPos3.y - standHeight);
+                Vector2 gunPos = new Vector2(gunPos3.x, gunPos3.y);
 
                 Vector2 seg = __result - rayOrigin;
                 float segLen = seg.magnitude;
@@ -219,14 +220,18 @@ namespace ZedZone.BetterSpecialWeapons
                 Vector2 bestPos = __result;
                 BasicCharacterController bestVictim = null;
 
-                // 优先级 1：准星附近（snapRadius 半径内）自动索敌，优先锁定距准星最近且无墙体/前排遮挡的敌人
-                var nearHits = Physics2D.OverlapCircleAll(cursorAnchor, snapRadius, charHitMask);
-                if (nearHits != null && nearHits.Length > 0)
+                // 优先级 1：沿“枪口/投影 → 准星”走廊扫掠，始终优先锁定路线前方最近且无墙体遮挡的敌人（避免跨怪电地板）
+                Vector2 visSeg = cursorAnchor - gunPos;
+                float visLen = visSeg.magnitude;
+                Vector2 visDir = visLen > 0.05f ? visSeg / visLen : dir;
+
+                var corridorHits = Physics2D.CircleCastAll(rayOrigin, snapRadius, dir, searchAnchorDist, charHitMask);
+                if (corridorHits != null && corridorHits.Length > 0)
                 {
-                    float bestCursorDistSq = float.PositiveInfinity;
-                    for (int i = 0; i < nearHits.Length; i++)
+                    float bestAlong = float.PositiveInfinity;
+                    for (int i = 0; i < corridorHits.Length; i++)
                     {
-                        var col = nearHits[i];
+                        var col = corridorHits[i].collider;
                         if (col == null) continue;
                         if (attackerTransform != null && col.transform.IsChildOf(attackerTransform))
                             continue;
@@ -240,79 +245,73 @@ namespace ZedZone.BetterSpecialWeapons
 
                         Bounds bounds = col.bounds;
                         Vector2 colCenter = new Vector2(bounds.center.x, bounds.center.y);
-                        float distFromOrigin = Vector2.Distance(rayOrigin, colCenter);
-                        if (distFromOrigin < 0.10f || distFromOrigin > maxWeaponRange + 0.5f)
+                        Vector2 rel = colCenter - rayOrigin;
+
+                        float along = Vector2.Dot(rel, dir);
+                        if (along < 0.08f || along > searchAnchorDist + 0.35f)
                             continue;
 
-                        float cursorDistSq = (colCenter - cursorAnchor).sqrMagnitude;
-                        if (cursorDistSq >= bestCursorDistSq)
+                        float perpGround = Mathf.Abs(rel.x * dir.y - rel.y * dir.x);
+                        Vector2 relVis = colCenter - gunPos;
+                        float alongVis = Vector2.Dot(relVis, visDir);
+                        float perpVis = (alongVis >= -0.25f && alongVis <= visLen + 0.5f)
+                            ? Mathf.Abs(relVis.x * visDir.y - relVis.y * visDir.x)
+                            : float.PositiveInfinity;
+                        float minPerp = Mathf.Min(perpGround, perpVis);
+
+                        float colAllowance = Mathf.Min(0.45f, Mathf.Max(bounds.extents.x, bounds.extents.y));
+                        if (minPerp > snapRadius + colAllowance)
+                            continue;
+
+                        if (along >= bestAlong)
                             continue;
 
                         if (!VerifyBeamHitsVictim(rayOrigin, colCenter, attacker, attackerTransform, victimPtr, bulletMask))
                             continue;
 
-                        bestCursorDistSq = cursorDistSq;
+                        bestAlong = along;
                         bestPos = colCenter;
                         bestVictim = victim;
                     }
                 }
 
-                // 优先级 2：若准星圈内无可选目标，沿“枪口投影 → 准星锚点”走廊扫掠，优先锁定前方最近目标
+                // 优先级 2：走廊内无目标时，搜索准星周围 snapRadius 半径内最近的可命中敌人
                 if (bestVictim == null)
                 {
-                    float maxDist = searchAnchorDist;
-                    int wallOnlyMask = bulletMask & ~SpecialWeaponHelper.GetAllCharactersLayerMask();
-                    if (wallOnlyMask != 0)
+                    var nearHits = Physics2D.OverlapCircleAll(cursorAnchor, snapRadius, charHitMask);
+                    if (nearHits != null && nearHits.Length > 0)
                     {
-                        RaycastHit2D wallHit = Physics2D.Raycast(rayOrigin, dir, maxDist, wallOnlyMask);
-                        if (wallHit.collider != null && wallHit.distance < maxDist)
-                            maxDist = wallHit.distance;
-                    }
-
-                    if (maxDist >= 0.20f)
-                    {
-                        float raySnapRadius = snapRadius * 0.75f;
-                        var hits = Physics2D.CircleCastAll(rayOrigin, raySnapRadius, dir, maxDist, charHitMask);
-                        if (hits != null && hits.Length > 0)
+                        float bestCursorDistSq = float.PositiveInfinity;
+                        for (int i = 0; i < nearHits.Length; i++)
                         {
-                            float bestAlong = float.PositiveInfinity;
-                            for (int i = 0; i < hits.Length; i++)
-                            {
-                                var col = hits[i].collider;
-                                if (col == null) continue;
-                                if (attackerTransform != null && col.transform.IsChildOf(attackerTransform))
-                                    continue;
+                            var col = nearHits[i];
+                            if (col == null) continue;
+                            if (attackerTransform != null && col.transform.IsChildOf(attackerTransform))
+                                continue;
 
-                                var victim = BasicCharacterController.GetCharacterFromCollider(col);
-                                if (victim == null || victim.deadFlag) continue;
-                                IntPtr victimPtr = SpecialWeaponHelper.Ptr(victim);
-                                if (victimPtr == IntPtr.Zero || victimPtr == attackerPtr) continue;
-                                if (!BeamWeaponState.CanDamageTarget(attacker, victim))
-                                    continue;
+                            var victim = BasicCharacterController.GetCharacterFromCollider(col);
+                            if (victim == null || victim.deadFlag) continue;
+                            IntPtr victimPtr = SpecialWeaponHelper.Ptr(victim);
+                            if (victimPtr == IntPtr.Zero || victimPtr == attackerPtr) continue;
+                            if (!BeamWeaponState.CanDamageTarget(attacker, victim))
+                                continue;
 
-                                Bounds bounds = col.bounds;
-                                Vector2 colCenter = new Vector2(bounds.center.x, bounds.center.y);
-                                Vector2 rel = colCenter - rayOrigin;
+                            Bounds bounds = col.bounds;
+                            Vector2 colCenter = new Vector2(bounds.center.x, bounds.center.y);
+                            float distFromOrigin = Vector2.Distance(rayOrigin, colCenter);
+                            if (distFromOrigin < 0.08f || distFromOrigin > maxWeaponRange + 0.5f)
+                                continue;
 
-                                float along = Vector2.Dot(rel, dir);
-                                if (along < 0.10f || along > maxDist + raySnapRadius * 0.65f)
-                                    continue;
+                            float cursorDistSq = (colCenter - cursorAnchor).sqrMagnitude;
+                            if (cursorDistSq >= bestCursorDistSq)
+                                continue;
 
-                                float perp = Mathf.Abs(rel.x * dir.y - rel.y * dir.x);
-                                float colAllowance = Mathf.Min(0.45f, Mathf.Max(bounds.extents.x, bounds.extents.y));
-                                if (perp > raySnapRadius + colAllowance)
-                                    continue;
+                            if (!VerifyBeamHitsVictim(rayOrigin, colCenter, attacker, attackerTransform, victimPtr, bulletMask))
+                                continue;
 
-                                if (along >= bestAlong)
-                                    continue;
-
-                                if (!VerifyBeamHitsVictim(rayOrigin, colCenter, attacker, attackerTransform, victimPtr, bulletMask))
-                                    continue;
-
-                                bestAlong = along;
-                                bestPos = colCenter;
-                                bestVictim = victim;
-                            }
+                            bestCursorDistSq = cursorDistSq;
+                            bestPos = colCenter;
+                            bestVictim = victim;
                         }
                     }
                 }
@@ -380,11 +379,13 @@ namespace ZedZone.BetterSpecialWeapons
     }
 
     /// <summary>
-    /// 本帧已由 GetAimingPoint 锁定目标时，把视觉电弧终点齐平吸附至锁定目标的躯干中心，避免电弧视觉落在目标脚底或擦边地板上。
+    /// 本帧锁定或命中敌人时，把视觉电弧终点无条件锁在目标躯干中心，避免落到脚底或擦边地面导致穿模错觉。
     /// </summary>
     [HarmonyPatch(typeof(BasicTeslaWeapon), nameof(BasicTeslaWeapon.UpdateLaserPoint), typeof(Vector3), typeof(Vector3))]
     internal static class Patch_BasicTeslaWeapon_UpdateLaserPoint
     {
+        private const int CharacterLayer = 9;
+
         [HarmonyPrefix]
         private static void Prefix(BasicTeslaWeapon __instance, ref Vector3 endPoint)
         {
@@ -401,8 +402,45 @@ namespace ZedZone.BetterSpecialWeapons
                 if (tracker.LockedFrame == Time.frameCount && victim != null && !victim.deadFlag)
                 {
                     Vector3 torso = victim.GetTorsePositionOrRoot();
-                    if (Vector2.Distance(new Vector2(endPoint.x, endPoint.y), new Vector2(torso.x, torso.y)) <= 2.4f)
-                        endPoint = new Vector3(torso.x, torso.y, endPoint.z);
+                    endPoint = new Vector3(torso.x, torso.y, endPoint.z);
+                    return;
+                }
+
+                // 若未经磁吸而由原版射线直接命中的敌人，按命中点兜底反查角色并锁到躯干
+                var attacker = __instance.character;
+                Transform attackerTransform = attacker != null ? attacker.transform : null;
+                IntPtr attackerPtr = SpecialWeaponHelper.Ptr(attacker);
+                Vector2 end2 = new Vector2(endPoint.x, endPoint.y);
+                var hits = Physics2D.OverlapCircleAll(end2, 0.25f, 1 << CharacterLayer);
+                if (hits == null || hits.Length == 0) return;
+
+                BasicCharacterController best = null;
+                float bestSq = float.PositiveInfinity;
+                for (int i = 0; i < hits.Length; i++)
+                {
+                    var col = hits[i];
+                    if (col == null) continue;
+                    if (attackerTransform != null && col.transform.IsChildOf(attackerTransform))
+                        continue;
+                    var ch = BasicCharacterController.GetCharacterFromCollider(col);
+                    if (ch == null || ch.deadFlag) continue;
+                    IntPtr ptr = SpecialWeaponHelper.Ptr(ch);
+                    if (ptr == IntPtr.Zero || ptr == attackerPtr) continue;
+                    if (!BeamWeaponState.CanDamageTarget(attacker, ch)) continue;
+
+                    Bounds b = col.bounds;
+                    float sq = (new Vector2(b.center.x, b.center.y) - end2).sqrMagnitude;
+                    if (sq < bestSq)
+                    {
+                        bestSq = sq;
+                        best = ch;
+                    }
+                }
+
+                if (best != null)
+                {
+                    Vector3 torso = best.GetTorsePositionOrRoot();
+                    endPoint = new Vector3(torso.x, torso.y, endPoint.z);
                 }
             }
             catch (Exception ex)
@@ -435,8 +473,11 @@ namespace ZedZone.BetterSpecialWeapons
                 if (!BeamWeaponState.CanDamageTarget(__instance.character, victim))
                     return false;
 
-                // 每帧维持主目标指针，确保原版链式传导 UpdateChain 电弧不断链
+                // 每帧维持主目标指针，确保原版链式传导 UpdateChain 电弧不断链，同时同步供 UpdateLaserPoint 锁躯
                 __instance.m_beamCharacter = victim;
+                var hitTracker = BeamWeaponState.GetOrCreate(__instance);
+                hitTracker.LockedVictim = victim;
+                hitTracker.LockedFrame = Time.frameCount;
 
                 float pulseInterval = SpecialWeaponHelper.GetTeslaFireInterval();
                 if (!BeamWeaponState.TryConsumePulse(__instance, pulseInterval, out float effectiveInterval, out float pulseCountScale))

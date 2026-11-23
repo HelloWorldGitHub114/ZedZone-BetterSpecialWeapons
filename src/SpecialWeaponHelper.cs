@@ -21,7 +21,7 @@ namespace ZedZone.BetterSpecialWeapons
         internal const float VanillaLaserTerrainDps = 600f;
         internal const float VanillaTeslaTerrainDps = 400f;
 
-        internal const float DefaultBeamFireRateHz = 30f;
+        internal const float DefaultBeamFireRateHz = 50f;
         internal const float DefaultLiquidInterval = 0.02f;
 
         internal static IntPtr Ptr(Il2CppObjectBase obj)
@@ -41,7 +41,7 @@ namespace ZedZone.BetterSpecialWeapons
         internal static float GetTeslaFireInterval()
         {
             float hz = Plugin.TeslaFireRateHz != null
-                ? Mathf.Clamp(Plugin.TeslaFireRateHz.Value, 10f, 60f)
+                ? Mathf.Clamp(Plugin.TeslaFireRateHz.Value, 10f, 100f)
                 : DefaultBeamFireRateHz;
             return 1f / hz;
         }
@@ -49,7 +49,7 @@ namespace ZedZone.BetterSpecialWeapons
         internal static float GetLaserFireInterval()
         {
             float hz = Plugin.LaserFireRateHz != null
-                ? Mathf.Clamp(Plugin.LaserFireRateHz.Value, 10f, 60f)
+                ? Mathf.Clamp(Plugin.LaserFireRateHz.Value, 10f, 100f)
                 : DefaultBeamFireRateHz;
             return 1f / hz;
         }

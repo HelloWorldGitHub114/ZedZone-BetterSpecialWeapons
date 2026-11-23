@@ -80,18 +80,18 @@ namespace ZedZone.BetterSpecialWeapons
                 "输出详细调试日志到 BepInEx\\LogOutput.log。");
 
             EnableTeslaRework = Config.Bind("TeslaGun_467", "Enabled", true,
-                "启用特斯拉枪（467）帧率无关高频脉冲、链式同步与电弧微幅磁吸。");
-            TeslaDamagePerTick = Config.Bind("TeslaGun_467", "DamagePerTick", 60f,
-                new ConfigDescription("特斯拉枪每次电击的基础伤害（配合默认 30 次/秒 -> 1,800 基础单体 DPS，3 链导电最高约 4,220 DPS）。",
+                "启用特斯拉枪（467）帧率无关高频脉冲、链式同步与电弧自动索敌。");
+            TeslaDamagePerTick = Config.Bind("TeslaGun_467", "DamagePerTick", 36f,
+                new ConfigDescription("特斯拉枪每次电击的基础伤害（配合默认 50 次/秒 -> 1,800 基础单体 DPS，3 链导电最高约 4,220 DPS）。",
                     new AcceptableValueRange<float>(5f, 2000f)));
-            TeslaFireRateHz = Config.Bind("TeslaGun_467", "FireRateHz", 30f,
-                new ConfigDescription("特斯拉枪每秒电击次数（Hz，范围 10 ~ 60，默认 30；主光束与连锁电弧同频触发，并同步至武器面板射速）。",
-                    new AcceptableValueRange<float>(10f, 60f)));
+            TeslaFireRateHz = Config.Bind("TeslaGun_467", "FireRateHz", 50f,
+                new ConfigDescription("特斯拉枪每秒电击次数（Hz，范围 10 ~ 100，默认 50 即面板 3,000 RPM；主光束与连锁电弧同频触发并同步至面板射速）。",
+                    new AcceptableValueRange<float>(10f, 100f)));
             TeslaChainFalloff = Config.Bind("TeslaGun_467", "ChainFalloff", 0.65f,
                 new ConfigDescription("特斯拉枪链式传导每一跳的伤害衰减系数（默认 0.65，与原版一致）。",
                     new AcceptableValueRange<float>(0.1f, 1.0f)));
             TeslaArcSnapRadius = Config.Bind("TeslaGun_467", "ArcMagneticSnapRadius", 1.8f,
-                new ConfigDescription("高压电弧自动索敌半径（米，范围 0 ~ 4.5，默认 1.8；设 0 关闭。优先锁定准星附近敌人，其次沿射线自动锁定前方目标，视觉电弧直接锁在目标躯干上）。",
+                new ConfigDescription("高压电弧自动索敌半径（米，范围 0 ~ 4.5，默认 1.8；设 0 关闭。优先沿枪口到鼠标的射线走廊自动锁定前方敌人，其次锁定准星附近目标，视觉电弧直接锁在目标躯干上）。",
                     new AcceptableValueRange<float>(0f, 4.5f)));
             TeslaStunChancePerSec = Config.Bind("TeslaGun_467", "StunChancePerSecond", 0.22f,
                 new ConfigDescription("特斯拉枪每秒触发电击硬直麻痹的等效概率（范围 0 ~ 1.0，默认 0.22，保持合理控场节奏）。",
@@ -102,12 +102,12 @@ namespace ZedZone.BetterSpecialWeapons
 
             EnableLaserRework = Config.Bind("MiningLaser_466", "Enabled", true,
                 "启用采矿激光器（466）帧率无关高频脉冲重做并保护原版采矿/拆墙效率。");
-            LaserDamagePerTick = Config.Bind("MiningLaser_466", "DamagePerTick", 80f,
-                new ConfigDescription("采矿激光器每次激光脉冲的基础伤害（配合默认 30 次/秒 -> 2,400 基础单体 DPS，纯单体高伤定位，对单超越特斯拉枪）。",
+            LaserDamagePerTick = Config.Bind("MiningLaser_466", "DamagePerTick", 48f,
+                new ConfigDescription("采矿激光器每次激光脉冲的基础伤害（配合默认 50 次/秒 -> 2,400 基础单体 DPS，纯单体高伤定位，对单超越特斯拉枪）。",
                     new AcceptableValueRange<float>(5f, 2000f)));
-            LaserFireRateHz = Config.Bind("MiningLaser_466", "FireRateHz", 30f,
-                new ConfigDescription("采矿激光器每秒伤害脉冲次数（Hz，范围 10 ~ 60，默认 30，并同步至武器面板射速）。",
-                    new AcceptableValueRange<float>(10f, 60f)));
+            LaserFireRateHz = Config.Bind("MiningLaser_466", "FireRateHz", 50f,
+                new ConfigDescription("采矿激光器每秒伤害脉冲次数（Hz，范围 10 ~ 100，默认 50 即面板 3,000 RPM，并同步至武器面板射速）。",
+                    new AcceptableValueRange<float>(10f, 100f)));
             LaserDeathMultiplier = Config.Bind("MiningLaser_466", "DeathMultiplier", 25f,
                 new ConfigDescription("采矿激光器命中目标的击杀/穿甲系数（原版误传为 bulletNumber=1，特斯拉为 50）。",
                     new AcceptableValueRange<float>(1f, 100f)));
